@@ -1,0 +1,4 @@
+*.o
+kernel.elf
+.vscode/
+.DS_Store
