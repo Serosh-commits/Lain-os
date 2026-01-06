@@ -31,6 +31,12 @@ class PredictiveShell {
                 char* tb = tbuf;
                 while (*tb) *uart = *tb++;
                 *uart = '\n';
+            } else if (buffer[0] == 'h' && buffer[1] == 'e' && buffer[2] == 'l' && buffer[3] == 'p') {
+                const char* help = "Available commands: panic, ascend, spawn, query, uptime, help, info\n";
+                while (*help) *uart = *help++;
+            } else if (buffer[0] == 'i' && buffer[1] == 'n' && buffer[2] == 'f' && buffer[3] == 'o') {
+                const char* info = "LainOS/Abyss v1.0.0-wired\nBuilt with C++20/RISC-V\nCopyright (C) 1998, 2025 Wired Foundation\n";
+                while (*info) *uart = *info++;
             } else {
                 const char* unk = "Unknown command.\n";
                 while (*unk) *uart = *unk++;
