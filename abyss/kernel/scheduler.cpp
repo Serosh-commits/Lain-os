@@ -21,6 +21,8 @@ struct Process {
 constexpr int MAX_PROC = 64;
 Process* process_table[MAX_PROC];
 int proc_count = 0;
+uint64_t ticks = 0;
+
 class TemporalScheduler {
 public:
     void init() {
@@ -38,6 +40,7 @@ public:
         }
     }
     void timer_interrupt() {
+        ticks++;
         if (!current_process) return;
         for (auto& tl : current_process->timelines) {
             tl.timestamp++;

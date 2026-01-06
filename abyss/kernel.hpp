@@ -22,7 +22,9 @@ namespace abyss {
     extern HotPatcher hot_patcher;
 
     extern int proc_count;
+    void itoa(char* buf, uint64_t n);
 
     extern "C" void panic(const char* message);
     extern "C" void syscall_ascend();
+    extern "C" uint64_t syscall_uptime();
 }

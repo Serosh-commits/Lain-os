@@ -25,3 +25,17 @@ extern "C" {
     int atexit(void (*)(void)) { return 0; }
 }
 void* __dso_handle = 0;
+
+namespace abyss {
+void itoa(char* buf, uint64_t n) {
+    if (n == 0) { buf[0] = '0'; buf[1] = 0; return; }
+    int i = 0;
+    while (n > 0) { buf[i++] = (n % 10) + '0'; n /= 10; }
+    buf[i] = 0;
+    for (int j = 0; j < i / 2; ++j) {
+        char tmp = buf[j];
+        buf[j] = buf[i - j - 1];
+        buf[i - j - 1] = tmp;
+    }
+}
+}

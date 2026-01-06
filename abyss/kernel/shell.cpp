@@ -23,6 +23,14 @@ class PredictiveShell {
             } else if (buffer[0] == 'q' && buffer[1] == 'u' && buffer[2] == 'e' && buffer[3] == 'r' && buffer[4] == 'y') {
                 const char* m = quantum_driver.is_entangled() ? "Entangled.\n" : "Stable.\n";
                 while (*m) *uart = *m++;
+            } else if (buffer[0] == 'u' && buffer[1] == 'p' && buffer[2] == 't' && buffer[3] == 'i' && buffer[4] == 'm' && buffer[5] == 'e') {
+                char tbuf[32];
+                itoa(tbuf, syscall_uptime());
+                const char* m = "Uptime: ";
+                while (*m) *uart = *m++;
+                char* tb = tbuf;
+                while (*tb) *uart = *tb++;
+                *uart = '\n';
             } else {
                 const char* unk = "Unknown command.\n";
                 while (*unk) *uart = *unk++;

@@ -22,6 +22,10 @@ Decompiler decompiler;
 HotPatcher hot_patcher;
 }
 
+extern "C" uint64_t syscall_uptime() {
+    return abyss::ticks;
+}
+
 extern "C" void kmain() {
     using namespace abyss;
     volatile char* uart = (volatile char*)0x10000000;
