@@ -20,4 +20,4 @@ public:
     size_type size_;
 };
 
-} // namespace std
+}
