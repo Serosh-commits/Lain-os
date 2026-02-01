@@ -11,6 +11,46 @@ Everything here i tried to built it from scratch. No standard library, no extern
 
 ---
 
+### Architecture
+
+```mermaid
+graph TD
+    subgraph Hardware
+        QEMU[QEMU RISC-V]
+    end
+
+    subgraph AbyssCore
+        START[start.S] --> KMAIN[kmain.cpp]
+        KMAIN --> HEAP[Heap Allocator]
+        KMAIN --> PAGING[Page Tables]
+    end
+
+    subgraph Subsystems
+        KMAIN --> SCHEDULER[Temporal Scheduler]
+        KMAIN --> VFS[NeuroVFS]
+        KMAIN --> SHELL[Predictive Shell]
+        KMAIN --> EGO[Ego Containers]
+    end
+
+    subgraph Tools
+        SHELL --> DECOMPILER[Live Disassembler]
+        SHELL --> PATCHER[Hot Patcher]
+        SHELL --> ASCENSION[Ascension Trigger]
+    end
+
+    subgraph Drivers
+        KMAIN --> QUANTUM[Quantum Driver]
+        QEMU --> UART[UART 0x10000000]
+    end
+
+    SCHEDULER --> |timelines| PROCESSES[Processes]
+    VFS --> |files| FILESYSTEM[/home/lain]
+    SHELL --> |input| UART
+    UART --> |output| SHELL
+```
+
+---
+
 ###  The Soul of the Machine
 I didn't want a "normal" OS. I wanted something that feels alive.
 
