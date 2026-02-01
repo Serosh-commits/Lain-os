@@ -7,9 +7,9 @@
 #include "fs/neurovfs.cpp"
 #include "kernel/ego.cpp"
 #include "drivers/quantum.cpp"
+#include "kernel/patcher.cpp"
 #include "kernel/shell.cpp"
 #include "mm/paging.cpp"
-#include "kernel/patcher.cpp"
 
 namespace abyss {
 TemporalScheduler scheduler;
@@ -27,27 +27,27 @@ extern "C" uint64_t syscall_uptime() {
 }
 
 extern "C" void kmain() {
-    using namespace abyss;
     volatile char* uart = (volatile char*)0x10000000;
     const char* msg = "LainOS/Abyss: Connection to the Wired established.\n";
     while (*msg) *uart = *msg++;
 
-    scheduler.init();
-    ego_manager.init();
-    quantum_driver.init();
-    shell.init();
-    page_table_manager.init();
+    abyss::scheduler.init();
+    abyss::ego_manager.init();
+    abyss::quantum_driver.init();
+    abyss::vfs.init(); // Init files
+    abyss::shell.init();
+    abyss::page_table_manager.init();
 
     const char* prompt = "\nroot@abyss# ";
     const char* p = prompt;
     while (*p) *uart = *p++;
 
     for (;;) {
-        scheduler.schedule();
+        abyss::scheduler.schedule();
         volatile char* uart_lsr = (volatile char*)0x10000005;
         if (*uart_lsr & 1) {
             char c = *(volatile char*)0x10000000;
-            shell.syscall_key_event(c);
+            abyss::shell.syscall_key_event(c);
         }
     }
 }
