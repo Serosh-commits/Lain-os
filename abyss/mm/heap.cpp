@@ -13,6 +13,7 @@ void* kmalloc(size_t size) {
     heap_offset += size;
     return ptr;
 }
+size_t get_heap_usage() { return heap_offset; }
 void kfree(void* ptr) { (void)ptr; }
 }
 void* operator new(size_t size) { return abyss::kmalloc(size); }
