@@ -6,7 +6,7 @@ ifeq ($(ARCH),riscv64)
     CC = $(TRIPLE)-gcc
     LD = $(TRIPLE)-ld
     QEMU = qemu-system-riscv64
-    QEMU_FLAGS = -machine virt -bios default -kernel kernel.elf -nographic -serial mon:stdio
+    QEMU_FLAGS = -machine virt -bios default -kernel kernel.elf -nographic -serial mon:stdio -m 512M
     CXXFLAGS_ARCH = -mcmodel=medany
 else ifeq ($(ARCH),x86_64)
     TRIPLE = x86_64-elf
