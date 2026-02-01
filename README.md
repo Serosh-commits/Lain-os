@@ -1,93 +1,54 @@
-# LainOS/Abyss
+# LAIN-OS
+> "No matter where you are, everyone is always connected."
 
-## Prerequisites
-To build and run LainOS, you need the RISC-V GNU Toolchain and QEMU.
+LainOS (Abyss) is my attempt to build a kernel that doesn't just manage hardware, but reflects the chaos of the Wired. It’s a hobbyist, research-grade RISC-V kernel written in C++20. I got tired of how bloated modern operating systems are—they hide the machine from you. This project is about bringing the raw power of the silicon back to the user.
 
-### Debian/Ubuntu
-```bash
-sudo apt install gcc-riscv64-unknown-elf qemu-system-riscv64
-```
+Everything here i tried to built it from scratch. No standard library, no external headers—just me, a linker script, and the RISC-V ISA.
 
-### Arch Linux
-```bash
-sudo pacman -S riscv64-elf-gcc qemu-system-riscv
-```
+---
 
-### macOS
-```bash
-brew tap riscv-software-src/riscv
-brew install riscv-tools qemu
-```
+###  The Soul of the Machine
+I didn't want a "normal" OS. I wanted something that feels alive.
 
-## Building
-To build the kernel image (`kernel.elf`):
-```bash
-make
-```
+*   **Temporal Fracture Scheduler**: Gone are the days of boring round-robin. Abyss uses a "Timeline" system. Every process exists in its own fracture of time. When you `spawn`, you aren't just forking a PID; you're branching a new reality.
+*   **Predictive Shell**: It’s creepy, I know. It uses a 16MB Markov Chain to track your habits. It knows what you’re going to type before you do. Press `Tab` and let the machine speak for you.
+*   **NeuroVFS**: A recursive, hierarchical filesystem that supports Unix-style paths. It’s got a built-in "yay" simulated package manager because I wanted that Arch feel even in a custom kernel.
 
-To verify syntax (if you don't have the cross-compiler):
-```bash
-make syntax
-```
+### Tools
+I built these because I hate debugging with GDB. Why use an external tool when the kernel can debug itself?
 
-## Running
-To run the kernel in QEMU:
-```bash
-make run
-```
+*   **Live Disassembler**: Run `decompile <addr>` in the shell. It will literally pull the machine code from RAM and show you the RISC-V instructions.
+*   **Hot Patcher**: Found a bug at runtime? Use `patch <addr> <val>` to overwrite the running kernel memory. No reboots required. 
+*   **Ascension Trigger**: The ultimate exit. When you're ready, run `ascend`. The kernel will dump its state and reboot the reality.
 
-To exit QEMU, press `Ctrl+A` then `X`.
+---
 
-## Architecture Overview
+###  Getting it Running
+If you have a RISC-V toolchain, it's literally one command.
 
-LainOS (codenamed Abyss) is an experimental, production-grade kernel designed to challenge traditional OS concepts. It is built with the following philosophy: **No fluff, just raw, advanced systems.**
+1.  **Dependencies**
+    *   `riscv64-elf-gcc` / `riscv64-elf-g++`
+    *   `qemu-system-riscv64`
 
-### Layer 0: AbyssCore (Minimal C++20 Kernel Base)
-- **Entry**: `_start` in `start.S` (pure assembly) sets up the stack and jumps to `kmain.cpp`.
-- **Runtime**: Custom STL-lite (`vector`, `unique_ptr`, `span`, `string_view`, `optional`) to avoid all external dependencies.
-- **Memory**: Basic bump allocator for `new`/`delete` support.
-- **Panic**: DWARF-based unwinding (stubbed) for detailed crash reports.
+2.  **Build & Boot**
+    ```bash
+    make clean && make run
+    ```
+    *I've tuned the Makefile to give QEMU 512MB of RAM because the predictive shell's Markov tables are hungry for memory.*
 
-### Layer 1: Temporal Fracture Scheduler
-- **Concept**: Instead of simple time-slicing, processes have "Timelines".
-- **Mechanism**: `timer_interrupt()` saves state to the current timeline. `syscall_yield()` branches reality by copying the current timeline.
-- **Scheduling**: The scheduler picks the "highest probability" timeline based on entropy and system state (e.g., CPU temperature).
+---
 
-### Layer 2: NeuroVFS (Per-User Content Mutation Filesystem)
-- **Concept**: A filesystem that changes content based on the observer.
-- **Mechanism**: Each inode has an `i_extra` field filled with entropy (keystrokes, mouse movement).
-- **Mutation**: `read()` operations XOR the file content with this entropy, ensuring that two users reading the same file see different data. `write()` updates the entropy.
+### ⌨Commands to Try
+Once the prompt `root@abyss#` hits your terminal, try these:
 
-### Layer 3: Ego Containers
-- **Concept**: Stronger isolation than Linux namespaces, based on "Egos".
-- **Mechanism**: An `Ego` is a container with a `BitMap` of visible PIDs.
-- **Merge**: `syscall_ego_merge()` allows one ego to absorb the visibility of another, effectively "becoming god" over those processes.
+*   `neofetch` - See the ASCII art and system stats.
+*   `yay -S htop` - Watch the simulated package manager compile htop into your VFS.
+*   `mkdir project && cd project` - Navigate the hierarchical filesystem.
+*   `decompile 0x80200000` - Peek at the kernel entry point.
+*   `ps` & `kill <pid>` - Manage the temporal fractures.
 
-### Layer 4: AbyssHyper (Type-0 Hypervisor)
-- **Concept**: The kernel runs *inside* a minimal hypervisor to allow for "Ring -1" operations.
-- **Mechanism**: A thin assembly shim (`hyper.S`) installs VMX/SVM/H-extension. `syscall_eject()` drops the kernel out of guest mode into hypervisor mode for live patching.
+###  Philosophy
+This isn't meant to be a replacement for Linux. It's meant to be a playground. It's for the people who want to jump into the middle of a triple-fault and find out *why* it happened. It's for the people who believe the computer is an extension of the self.
 
-### Layer 5: Predictive Shell
-- **Concept**: A shell that knows what you want to type before you do.
-- **Mechanism**: A 16MB Markov Chain table tracks trigram frequencies of all keystrokes.
-- **Prediction**: Pressing `Tab` on an empty line predicts the next 5 characters. Deviating from the prediction too often triggers a "Free Will Violation" reboot.
-
-### Layer 6: Quantum-Entangled Files
-- **Concept**: Files that are correlated across different machines.
-- **Mechanism**: `/dev/quantum0` and `/dev/quantum1` use a "violation mask" (simulated from Bell-test data) to XOR data. Writing to one "entangles" it, and reading from the other reveals the correlated state.
-
-### Layer 7: Self-Modifying Page Tables
-- **Concept**: User-space control over kernel memory mapping.
-- **Mechanism**: Page tables are mapped to a fixed address (`0xffff888000000000`). `mmap()`ing this allows a process to rewrite its own page tables, enabling tricks like instant Ring 0 jumps (`lain-goto`).
-
-### Layer 8: Ascension Trigger
-- **Concept**: An "end game" for the OS.
-- **Mechanism**: A global atomic counter at `0x90000000`. When it hits 777, the kernel uploads its entire state to IPFS, overwrites the MBR with a farewell message, and executes a triple fault to reboot.
-
-### Layer 9: Live Decompiler & Hot Patching
-- **Concept**: No need to stop the world to fix a bug.
-- **Mechanism**: `syscall_decompile` generates C source from running machine code. `syscall_hotpatch` overwrites running code in memory, fixing relocations on the fly.
-
-### Layer 10: Triple-ISA Fat Binary
-- **Concept**: One binary, three architectures.
-- **Mechanism**: The linker script creates sections for `.text.riscv64`, `.text.x86_64`, and `.text.aarch64`. The bootloader jumps to the correct one, allowing the same file to boot on any supported CPU.
+**Present Day. Present Time.**
+**HA-HA-HA-HA-HA.**
