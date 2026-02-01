@@ -1,6 +1,8 @@
 # LAIN-OS
 > "No matter where you are, everyone is always connected."
 
+![lain](https://media1.tenor.com/m/6R6W1n-LmNMAAAAd/lain-lain-iwakura.gif)
+
 LainOS (Abyss) is my attempt to build a kernel that doesn't just manage hardware, but reflects the chaos of the Wired. It’s a hobbyist, research-grade RISC-V kernel written in C++20. I got tired of how bloated modern operating systems are—they hide the machine from you. This project is about bringing the raw power of the silicon back to the user.
 
 Everything here i tried to built it from scratch. No standard library, no external headers—just me, a linker script, and the RISC-V ISA.
