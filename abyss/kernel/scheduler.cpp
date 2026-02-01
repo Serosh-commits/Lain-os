@@ -77,6 +77,52 @@ public:
             current_process->timelines.back() = tmp;
         }
     }
+    void print_process_list() {
+        volatile char* uart = (volatile char*)0x10000000;
+        const char* hdr = "   PID  TIMELINES  STATUS\n";
+        while (*hdr) *uart = *hdr++;
+
+        for (int i = 0; i < proc_count; ++i) {
+            Process* p = process_table[i];
+            if (!p) continue;
+            
+            // Print PID
+            char buf[32];
+            int n = p->pid;
+            int idx = 0;
+            if (n==0) buf[idx++]='0';
+            while(n>0) { buf[idx++]=(n%10)+'0'; n/=10; }
+            for(int k=0; k<6-idx; ++k) *uart = ' ';
+            while(idx>0) *uart = buf[--idx];
+
+            *uart = ' '; *uart = ' '; *uart = ' '; *uart = ' '; *uart = ' '; *uart = ' ';
+
+            // Print Timelines count
+            n = p->timelines.size();
+            idx = 0;
+            if (n==0) buf[idx++]='0';
+            while(n>0) { buf[idx++]=(n%10)+'0'; n/=10; }
+            while(idx>0) *uart = buf[--idx];
+
+            *uart = ' '; *uart = ' '; *uart = ' '; *uart = ' '; *uart = ' ';
+
+            // Status
+            const char* s = (p == current_process) ? "RUNNING" : "WAITING";
+            while (*s) *uart = *s++;
+            *uart = '\n';
+        }
+    }
+    bool kill(uint64_t pid) {
+        // Simple linear scan
+        for (int i = 0; i < proc_count; ++i) {
+             if (process_table[i] && process_table[i]->pid == pid) {
+                 if (pid == 0) return false; // Can't kill kernel
+                 process_table[i] = nullptr; // poor man's free
+                 return true;
+             }
+        }
+        return false;
+    }
 private:
     Process* current_process;
 };
