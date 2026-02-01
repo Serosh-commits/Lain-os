@@ -23,6 +23,7 @@ namespace abyss {
 
     extern int proc_count;
     void itoa(char* buf, uint64_t n);
+    size_t get_heap_usage();
 
     extern "C" void panic(const char* message);
     extern "C" void syscall_ascend();
