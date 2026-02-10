@@ -76,7 +76,7 @@ graph TD
     end
 
     subgraph Subsystems
-        KMAIN --> SCHEDULER[Temporal Scheduler]
+        KMAIN --> SCHEDULER[Scheduler<br/>← temporal]
         KMAIN --> VFS[NeuroVFS]
         KMAIN --> SHELL[Predictive Shell]
         KMAIN --> EGO[Ego Containers]
@@ -90,13 +90,14 @@ graph TD
 
     subgraph Drivers
         KMAIN --> QUANTUM[Quantum Driver]
-        QEMU --> UART[UART 0x10000000]
+        QEMU --> UART[UART @ 0x10000000]
     end
 
-    SCHEDULER --> |timelines| PROCESSES[Processes]
-    VFS --> |files| FILESYSTEM[/home/lain]
-    SHELL --> |input| UART
-    UART --> |output| SHELL
+    SCHEDULER -- "creates / schedules" --> PROCESSES[Processes]
+    PAGING -- "maps" --> PROCESSES
+    VFS -- "files" --> FILESYSTEM["/home/lain"]
+    UART -->|"characters in"| SHELL
+    SHELL -->|"characters out"| UART
 ```
 
 ```
