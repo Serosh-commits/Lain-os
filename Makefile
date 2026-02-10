@@ -1,53 +1,60 @@
-ARCH ?= riscv64
+CROSS = riscv64-elf-
+CC = $(CROSS)gcc
+AS = $(CROSS)as
+LD = $(CROSS)ld
+OBJCOPY = $(CROSS)objcopy
+OBJDUMP = $(CROSS)objdump
 
-ifeq ($(ARCH),riscv64)
-    TRIPLE = riscv64-elf
-    CXX = $(TRIPLE)-g++
-    CC = $(TRIPLE)-gcc
-    LD = $(TRIPLE)-ld
-    QEMU = qemu-system-riscv64
-    QEMU_FLAGS = -machine virt -bios default -kernel kernel.elf -nographic -serial mon:stdio -m 512M
-    CXXFLAGS_ARCH = -mcmodel=medany
-else ifeq ($(ARCH),x86_64)
-    TRIPLE = x86_64-elf
-    CXX = $(TRIPLE)-g++
-    CC = $(TRIPLE)-gcc
-    LD = $(TRIPLE)-ld
-    QEMU = qemu-system-x86_64
-    QEMU_FLAGS = -kernel kernel.elf -nographic -serial mon:stdio
-    CXXFLAGS_ARCH = -m64 -mno-red-zone
-endif
+CFLAGS = -Wall -Werror -O2 -ffreestanding -nostdlib -std=gnu99 -std=gnu99
+CFLAGS += -march=rv64gc -mabi=lp64d
+CFLAGS += -mcmodel=medany
+CFLAGS += -g -MD
+CFLAGS += -Iinclude
 
-CXXFLAGS = -std=c++20 -O2 -g -Wall -Wextra -Werror \
-           -fno-exceptions -fno-rtti -nostdlib -ffreestanding \
-           -fno-threadsafe-statics -fno-use-cxa-atexit \
-           $(CXXFLAGS_ARCH) -Iabyss
+LDFLAGS = -z max-page-size=4096
 
-LDFLAGS = -T linker_$(ARCH).ld -nostdlib -z max-page-size=4096
+SRCDIR = abyss
+OBJDIR = build
+BINDIR = $(OBJDIR)/bin
 
-SRCS_ASM = abyss/start.S abyss/hyper.S
-SRCS_CPP = abyss/kmain.cpp
+SRCS_S = $(shell find $(SRCDIR) -name '*.S')
+SRCS_C = $(shell find $(SRCDIR) -name '*.c')
 
-OBJS = $(SRCS_ASM:.S=.o) $(SRCS_CPP:.cpp=.o)
+OBJS = $(patsubst $(SRCDIR)/%.S,$(OBJDIR)/%.o,$(SRCS_S))
+OBJS += $(patsubst $(SRCDIR)/%.c,$(OBJDIR)/%.o,$(SRCS_C))
 
-all: kernel.elf
+KERNEL = $(BINDIR)/kernel.elf
 
-kernel.elf: $(OBJS) linker_$(ARCH).ld
-	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+.PHONY: all clean run debug
 
-%.o: %.S
-	$(CC) $(CXXFLAGS) -c $< -o $@
+all: $(KERNEL)
 
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(KERNEL): $(OBJS)
+	@mkdir -p $(dir $@)
+	$(LD) $(LDFLAGS) -T linker.ld -o $@ $^
+	$(OBJDUMP) -D $@ > $(BINDIR)/kernel.asm
+	@echo "Build complete: $@"
 
-syntax:
-	g++ -std=c++20 -fsyntax-only -Iabyss -D__riscv -nostdlib -ffreestanding $(SRCS_CPP)
+$(OBJDIR)/%.o: $(SRCDIR)/%.S
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
 
-run: kernel.elf
-	$(QEMU) $(QEMU_FLAGS)
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+run: $(KERNEL)
+	qemu-system-riscv64 -machine virt -cpu rv64 -smp 1 \
+		-m 512M -nographic \
+		-bios none -kernel $(KERNEL)
+
+debug: $(KERNEL)
+	qemu-system-riscv64 -machine virt -cpu rv64 -smp 1 \
+		-m 512M -nographic \
+		-bios none -kernel $(KERNEL) \
+		-s -S
 
 clean:
-	rm -f $(OBJS) kernel.elf
+	rm -rf $(OBJDIR)
 
-.PHONY: all run clean
+-include $(OBJS:.o=.d)
