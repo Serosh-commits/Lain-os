@@ -1,9 +1,10 @@
-#include "kernel/shell.h"
+)#include "kernel/shell.h"
 #include "kernel/process.h"
 #include "drivers/uart.h"
 #include "fs/vfs.h"
 #include "lib/string.h"
 #include "mm/pmm.h"
+#include "kernel/scheduler.h"
 
 #define CHAIN_LEN 3
 
@@ -14,6 +15,15 @@ extern char markov_predict(const char* text);
 static char cmdline[256];
 static char history[16][256];
 static int history_idx = 0;
+
+static int atoi(const char* s) {
+    int n = 0;
+    while (*s >= '0' && *s <= '9') {
+        n = n * 10 + (*s - '0');
+        s++;
+    }
+    return n;
+}
 
 static void print_banner() {
     uart_puts("\n");
@@ -35,13 +45,76 @@ static void cmd_help() {
     uart_puts("Available commands:\n");
     uart_puts("  help       - Show this help\n");
     uart_puts("  clear      - Clear screen\n");
+    uart_puts("  ls         - List files\n");
+    uart_puts("  cd         - Change directory\n");
+    uart_puts("  pwd        - Print working directory\n");
+    uart_puts("  mkdir      - Create directory\n");
+    uart_puts("  touch      - Create empty file\n");
+    uart_puts("  rm         - Remove file\n");
+    uart_puts("  cat        - View file content\n");
+    uart_puts("  write      - Write to file\n");
+    uart_puts("  whoami     - Current user\n");
+    uart_puts("  hostname   - System hostname\n");
+    uart_puts("  uptime     - System uptime\n");
+    uart_puts("  sudo       - Become a god\n");
     uart_puts("  neofetch   - System information\n");
     uart_puts("  ps         - List processes\n");
     uart_puts("  kill       - Kill process\n");
     uart_puts("  mem        - Memory status\n");
     uart_puts("  timeline   - Timeline management\n");
+    uart_puts("  branch     - Create temporal fracture\n");
+    uart_puts("  collapse   - Collapse probabilities\n");
     uart_puts("  echo       - Echo text\n");
+    uart_puts("  fork       - Fork process (dummy)\n");
     uart_puts("  ascend     - Trigger ascension\n");
+}
+
+extern uint64_t get_uptime();
+
+static void cmd_whoami() {
+    uart_puts("root\n");
+}
+
+static void cmd_hostname() {
+    uart_puts("abyss\n");
+}
+
+static void cmd_sudo() {
+    uart_puts("You are already god.\n");
+}
+
+static void cmd_uptime() {
+    uint64_t t = get_uptime();
+    uart_puts("Uptime: ");
+    uart_putnum(t / 1000000, 10);
+    uart_puts("s\n");
+}
+
+static void cmd_cat(const char* name) {
+    struct file* f = vfs_open(name, 0);
+    if (!f) {
+        uart_puts("File not found\n");
+        return;
+    }
+    char buf[128];
+    int n;
+    while ((n = vfs_read(f, buf, 127)) > 0) {
+        buf[n] = 0;
+        uart_puts(buf);
+    }
+    uart_puts("\n");
+    vfs_close(f);
+}
+
+static void cmd_write(const char* name, const char* data) {
+    struct file* f = vfs_open(name, 0x201); // O_CREAT | O_WRONLY
+    if (!f) {
+        uart_puts("Failed to open file\n");
+        return;
+    }
+    vfs_write(f, data, strlen(data));
+    vfs_close(f);
+    uart_puts("Written\n");
 }
 
 static void cmd_clear() {
@@ -127,13 +200,57 @@ static void cmd_echo(char* args) {
     uart_puts("\n");
 }
 
-static int atoi(const char* s) {
-    int n = 0;
-    while (*s >= '0' && *s <= '9') {
-        n = n * 10 + (*s - '0');
-        s++;
+static void cmd_timeline(int argc, char** argv) {
+    if (argc < 2) {
+        uart_puts("Usage: timeline <list|create|assign>\n");
+        return;
     }
-    return n;
+    
+    if (strcmp(argv[1], "list") == 0) {
+        uart_puts("ID  PRIORITY  QUANTUM  ELAPSED\n");
+        // We need an extern to timelines or a getter
+        // But for now let's just use what's available
+        uart_puts("Feature partially implemented - see logs\n");
+    } else if (strcmp(argv[1], "create") == 0) {
+        if (argc < 3) {
+            uart_puts("Usage: timeline create <priority>\n");
+        } else {
+            uint64_t prio = atoi(argv[2]);
+            struct timeline* tl = timeline_create(prio);
+            if (tl) {
+                uart_puts("Timeline created with ID ");
+                uart_putnum(tl->id, 10);
+                uart_puts("\n");
+            }
+        }
+    } else if (strcmp(argv[1], "assign") == 0) {
+        if (argc < 4) {
+            uart_puts("Usage: timeline assign <pid> <timeline_id>\n");
+        } else {
+            int pid = atoi(argv[2]);
+            uint64_t tl_id = atoi(argv[3]);
+            timeline_assign(pid, tl_id);
+            uart_puts("Timeline assigned\n");
+        }
+    }
+}
+
+static void cmd_fork() {
+    int pid = proc_fork();
+    if (pid < 0) {
+        uart_puts("Fork failed\n");
+    } else if (pid == 0) {
+        // Child process
+        // Since we are in kernel threads, we should really go somewhere else
+        // But for a simple test we can just loop
+        while(1) {
+            asm volatile("wfi");
+        }
+    } else {
+        uart_puts("Forked process with PID ");
+        uart_putnum(pid, 10);
+        uart_puts("\n");
+    }
 }
 
 void shell_execute(char* cmd) {
@@ -185,8 +302,60 @@ void shell_execute(char* cmd) {
         if (argc > 1) {
             cmd_echo(argv[1]);
         }
+    } else if (strcmp(argv[0], "ls") == 0) {
+        vfs_ls();
+    } else if (strcmp(argv[0], "cd") == 0) {
+        if (argc > 1) {
+            vfs_chdir(argv[1]);
+        } else {
+            vfs_chdir("/");
+        }
+    } else if (strcmp(argv[0], "pwd") == 0) {
+        char buf[MAX_PATH];
+        vfs_pwd(buf);
+        uart_puts(buf);
+        uart_puts("\n");
+    } else if (strcmp(argv[0], "mkdir") == 0) {
+        if (argc > 1) {
+            vfs_mkdir(argv[1]);
+        }
+    } else if (strcmp(argv[0], "touch") == 0) {
+        if (argc > 1) {
+            struct file* f = vfs_open(argv[1], 0x200); // O_CREAT
+            if (f) vfs_close(f);
+        }
+    } else if (strcmp(argv[0], "rm") == 0) {
+        if (argc > 1) {
+            vfs_remove(argv[1]);
+        }
+    } else if (strcmp(argv[0], "cat") == 0) {
+        if (argc > 1) {
+            cmd_cat(argv[1]);
+        }
+    } else if (strcmp(argv[0], "write") == 0) {
+        if (argc > 2) {
+            cmd_write(argv[1], argv[2]);
+        }
+    } else if (strcmp(argv[0], "whoami") == 0) {
+        cmd_whoami();
+    } else if (strcmp(argv[0], "hostname") == 0) {
+        cmd_hostname();
+    } else if (strcmp(argv[0], "sudo") == 0) {
+        cmd_sudo();
+    } else if (strcmp(argv[0], "uptime") == 0) {
+        cmd_uptime();
     } else if (strcmp(argv[0], "timeline") == 0) {
-        uart_puts("Timeline feature not yet implemented\n");
+        cmd_timeline(argc, argv);
+    } else if (strcmp(argv[0], "branch") == 0) {
+        sched_branch();
+        uart_puts("Fracture created.\n");
+    } else if (strcmp(argv[0], "collapse") == 0) {
+        if (argc > 1) {
+            sched_collapse(atoi(argv[1]));
+            uart_puts("Probabilities collapsed.\n");
+        }
+    } else if (strcmp(argv[0], "fork") == 0) {
+        cmd_fork();
     } else {
         uart_puts("Unknown command: ");
         uart_puts(argv[0]);
@@ -212,6 +381,7 @@ void shell_run() {
         while (1) {
             int c = uart_getc();
             if (c == -1) {
+                sched_yield();
                 continue;
             }
             

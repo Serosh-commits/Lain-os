@@ -11,14 +11,14 @@ static uint64_t free_pages;
 
 extern char end[];
 
-void pmm_init(uint64_t start, uint64_t end) {
+void pmm_init(uint64_t start_addr, uint64_t end_addr) {
     freelist = NULL;
     free_pages = 0;
     
-    uint64_t p = (uint64_t)end;
+    uint64_t p = start_addr;
     p = (p + PGSIZE - 1) & ~(PGSIZE - 1);
     
-    while (p + PGSIZE <= end) {
+    while (p + PGSIZE <= end_addr) {
         pmm_free((void*)p);
         p += PGSIZE;
     }

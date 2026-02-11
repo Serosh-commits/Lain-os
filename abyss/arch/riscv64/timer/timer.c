@@ -3,19 +3,20 @@
 
 #define TIMER_INTERVAL 100000
 
-static inline void write_clint(uint64_t offset, uint64_t value) {
-    volatile uint64_t* addr = (volatile uint64_t*)(CLINT + offset);
-    *addr = value;
-}
-
-static inline uint64_t read_clint(uint64_t offset) {
-    volatile uint64_t* addr = (volatile uint64_t*)(CLINT + offset);
-    return *addr;
+static inline void sbi_set_timer(uint64_t stime_value) {
+    asm volatile(
+        "mv a0, %0\n"
+        "li a7, 0\n"
+        "ecall"
+        :
+        : "r"(stime_value)
+        : "a0", "a7"
+    );
 }
 
 void timer_init() {
     uint64_t time = r_time();
-    write_clint(0x4000, time + TIMER_INTERVAL);
+    sbi_set_timer(time + TIMER_INTERVAL);
     
     uint64_t sie = r_sie();
     w_sie(sie | (1 << 5));
@@ -23,5 +24,9 @@ void timer_init() {
 
 void timer_handler() {
     uint64_t time = r_time();
-    write_clint(0x4000, time + TIMER_INTERVAL);
+    sbi_set_timer(time + TIMER_INTERVAL);
+}
+
+uint64_t get_uptime() {
+    return r_time();
 }

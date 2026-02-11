@@ -133,6 +133,37 @@ void sched_timer() {
 void sched_ret() {
     struct proc* p = proc_current();
     if (p) {
-        p->state = RUNNING;
+        p->state = RUNNABLE;
+    }
+}
+
+void sched_branch() {
+    struct proc* p = proc_current();
+    if (!p) return;
+    
+    struct timeline* tl = timeline_create(p->priority + 10);
+    if (tl) {
+        p->timeline_id = tl->id;
+        current_timeline = tl;
+    }
+}
+
+void sched_collapse(uint64_t id) {
+    struct timeline* tl = timelines;
+    struct timeline* prev = NULL;
+    
+    while (tl) {
+        if (tl->id != id && tl->id != 1) { // Never collapse default timeline 1
+            if (prev) prev->next = tl->next;
+            else timelines = tl->next;
+            
+            struct timeline* tmp = tl;
+            tl = tl->next;
+            kfree(tmp);
+        } else {
+            if (tl->id == id) current_timeline = tl;
+            prev = tl;
+            tl = tl->next;
+        }
     }
 }

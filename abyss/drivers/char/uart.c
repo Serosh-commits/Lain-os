@@ -13,24 +13,24 @@
 #define LSR_RX_READY (1 << 0)
 #define LSR_TX_IDLE (1 << 5)
 
-static volatile uint8_t* uart = (volatile uint8_t*)UART0;
+#define UART_REG(reg) (*(volatile uint8_t*)(UART0 + (reg)))
 
 void uart_init() {
-    uart[IER] = 0x00;
-    uart[FCR] = 0x01;
-    uart[LCR] = 0x03;
-    uart[IER] = 0x01;
+    UART_REG(IER) = 0x00;
+    UART_REG(FCR) = 0x01;
+    UART_REG(LCR) = 0x03;
+    UART_REG(IER) = 0x00;
 }
 
 void uart_putc(int c) {
-    while ((uart[LSR] & LSR_TX_IDLE) == 0)
+    while ((UART_REG(LSR) & LSR_TX_IDLE) == 0)
         ;
-    uart[THR] = c;
+    UART_REG(THR) = c;
 }
 
 int uart_getc() {
-    if (uart[LSR] & LSR_RX_READY) {
-        return uart[RHR];
+    if (UART_REG(LSR) & LSR_RX_READY) {
+        return UART_REG(RHR);
     }
     return -1;
 }

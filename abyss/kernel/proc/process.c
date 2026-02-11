@@ -126,7 +126,7 @@ int proc_fork() {
     
     for (int i = 0; i < NOFILE; i++) {
         if (p->ofile[i]) {
-            np->ofile[i] = p->ofile[i];
+            np->ofile[i] = vfs_file_dup(p->ofile[i]);
         }
     }
     

@@ -5,8 +5,8 @@ _start:
     csrw sie, zero
     csrw sip, zero
     
-    csrr t0, mhartid
-    bnez t0, park_hart
+    # OpenSBI starts us in S-mode, and it already handles multi-hart parking.
+    # No need to check mhartid (would fault in S-mode).
     
     la sp, __stack_top
     
@@ -22,11 +22,11 @@ bss_done:
     la t0, trap_vector
     csrw stvec, t0
     
-    li t0, 0x222
+    li t0, 0x22      # Enable SSIP and STIP, disable SEIP (External)
     csrw sie, t0
     
-    li t0, 0x2
-    csrw sstatus, t0
+    # Do not enable sstatus here. kmain will do it.
+    csrw sstatus, zero
     
     call kmain
     
@@ -121,8 +121,85 @@ trap_vector:
     sret
 
 trap_from_kernel:
+    # sp was already swapped with sscratch.
+    # sscratch now contains the kernel sp, and sp is 0.
     csrr sp, sscratch
-    j halt_loop
+    
+    addi sp, sp, -256
+    sd ra, 0(sp)
+    sd gp, 16(sp)
+    sd tp, 24(sp)
+    sd t0, 32(sp)
+    sd t1, 40(sp)
+    sd t2, 48(sp)
+    sd s0, 56(sp)
+    sd s1, 64(sp)
+    sd a0, 72(sp)
+    sd a1, 80(sp)
+    sd a2, 88(sp)
+    sd a3, 96(sp)
+    sd a4, 104(sp)
+    sd a5, 112(sp)
+    sd a6, 120(sp)
+    sd a7, 128(sp)
+    sd s2, 136(sp)
+    sd s3, 144(sp)
+    sd s4, 152(sp)
+    sd s5, 160(sp)
+    sd s6, 168(sp)
+    sd s7, 176(sp)
+    sd s8, 184(sp)
+    sd s9, 192(sp)
+    sd s10, 200(sp)
+    sd s11, 208(sp)
+    sd t3, 216(sp)
+    sd t4, 224(sp)
+    sd t5, 232(sp)
+    sd t6, 240(sp)
+    
+    # Store old sp (before addi)
+    addi t0, sp, 256
+    sd t0, 8(sp)
+    
+    # We are still in kernel, keep sscratch 0
+    csrw sscratch, zero
+    
+    mv a0, sp
+    call trap_handler
+    
+    ld ra, 0(sp)
+    ld gp, 16(sp)
+    ld tp, 24(sp)
+    ld t0, 32(sp)
+    ld t1, 40(sp)
+    ld t2, 48(sp)
+    ld s0, 56(sp)
+    ld s1, 64(sp)
+    ld a0, 72(sp)
+    ld a1, 80(sp)
+    ld a2, 88(sp)
+    ld a3, 96(sp)
+    ld a4, 104(sp)
+    ld a5, 112(sp)
+    ld a6, 120(sp)
+    ld a7, 128(sp)
+    ld s2, 136(sp)
+    ld s3, 144(sp)
+    ld s4, 152(sp)
+    ld s5, 160(sp)
+    ld s6, 168(sp)
+    ld s7, 176(sp)
+    ld s8, 184(sp)
+    ld s9, 192(sp)
+    ld s10, 200(sp)
+    ld s11, 208(sp)
+    ld t3, 216(sp)
+    ld t4, 224(sp)
+    ld t5, 232(sp)
+    ld t6, 240(sp)
+    
+    ld sp, 8(sp)
+    sret
 
 .global context_switch
 context_switch:

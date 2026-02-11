@@ -1,6 +1,7 @@
 #include "mm/vmm.h"
 #include "mm/pmm.h"
 #include "lib/string.h"
+#include "drivers/uart.h"
 
 pagetable_t kernel_pagetable;
 
@@ -36,7 +37,7 @@ int vmm_map(pagetable_t pagetable, uint64_t va, uint64_t pa, uint64_t size, int 
         if (*pte & PTE_V) {
             return -1;
         }
-        *pte = PA2PTE(pa) | perm | PTE_V;
+        *pte = PA2PTE(pa) | perm | PTE_V | PTE_A | PTE_D;
         if (a == last) {
             break;
         }
@@ -103,17 +104,29 @@ static void kvmmap(uint64_t va, uint64_t pa, uint64_t sz, int perm) {
     vmm_map(kernel_pagetable, va, pa, sz, perm);
 }
 
+#define PGROUNDUP(sz)  (((sz)+PGSIZE-1) & ~(PGSIZE-1))
+#define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
+
 void vmm_init() {
+    uart_puts("[VMM] Creating kernel pagetable...\n");
     kernel_pagetable = vmm_create();
     
+    uart_puts("[VMM] Mapping I/O devices...\n");
     kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
     kvmmap(CLINT, CLINT, 0x10000, PTE_R | PTE_W);
     kvmmap(PLIC, PLIC, 0x400000, PTE_R | PTE_W);
     
     extern char etext[];
-    kvmmap(0x80000000L, 0x80000000L, (uint64_t)etext - 0x80000000L, PTE_R | PTE_X);
-    kvmmap((uint64_t)etext, (uint64_t)etext, 0x88000000L - (uint64_t)etext, PTE_R | PTE_W);
+    uint64_t text_end = PGROUNDUP((uint64_t)etext);
     
+    uart_puts("[VMM] Mapping kernel text...\n");
+    kvmmap(0x80000000L, 0x80000000L, text_end - 0x80000000L, PTE_R | PTE_X);
+    
+    uart_puts("[VMM] Mapping kernel data/stack...\n");
+    kvmmap(text_end, text_end, 0x88000000L - text_end, PTE_R | PTE_W);
+    
+    uart_puts("[VMM] Switching to virtual memory...\n");
     w_satp(MAKE_SATP(kernel_pagetable));
     sfence_vma();
+    uart_puts("[VMM] Virtual memory enabled.\n");
 }
