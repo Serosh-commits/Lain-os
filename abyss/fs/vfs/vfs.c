@@ -13,6 +13,7 @@ void vfs_init() {
     for (int i = 0; i < NINODES; i++) {
         inodes[i].type = FT_NONE;
         inodes[i].inum = 0;
+        inodes[i].name[0] = 0;
     }
     
     root_inode = &inodes[0];
@@ -21,6 +22,7 @@ void vfs_init() {
     root_inode->nlink = 1;
     root_inode->size = 0;
     root_inode->data = NULL;
+    strcpy(root_inode->name, "/");
     
     cwd = root_inode;
 }
@@ -48,16 +50,13 @@ struct inode* vfs_namei(const char* path) {
         return cwd;
     }
     
-    char name[MAX_NAME];
-    int i = 0;
-    while (*path && *path != '/' && i < MAX_NAME - 1) {
-        name[i++] = *path++;
-    }
-    name[i] = 0;
+    // Simple one-level lookup
+    const char* name = path;
+    if (path[0] == '/') name++;
     
     for (int j = 0; j < NINODES; j++) {
         if (inodes[j].type != FT_NONE) {
-            if (strcmp((char*)&inodes[j].inum, name) == 0) {
+            if (strcmp(inodes[j].name, name) == 0) {
                 return &inodes[j];
             }
         }
@@ -70,11 +69,14 @@ struct file* vfs_open(const char* path, int flags) {
     struct inode* inode = vfs_namei(path);
     
     if (!inode) {
-        if (flags & 0x200) {
+        if (flags & 0x200) { // O_CREAT
             inode = inode_alloc(FT_FILE);
             if (!inode) {
                 return NULL;
             }
+            const char* name = path;
+            if (path[0] == '/') name++;
+            strncpy(inode->name, name, MAX_NAME - 1);
         } else {
             return NULL;
         }
@@ -88,13 +90,24 @@ struct file* vfs_open(const char* path, int flags) {
     f->inode = inode;
     f->offset = 0;
     f->flags = flags;
+    f->refcount = 1;
     
+    return f;
+}
+
+struct file* vfs_file_dup(struct file* f) {
+    if (f) {
+        f->refcount++;
+    }
     return f;
 }
 
 void vfs_close(struct file* f) {
     if (f) {
-        kfree(f);
+        f->refcount--;
+        if (f->refcount <= 0) {
+            kfree(f);
+        }
     }
 }
 
@@ -162,6 +175,10 @@ int vfs_mkdir(const char* path) {
         return -1;
     }
     
+    const char* name = path;
+    if (path[0] == '/') name++;
+    strncpy(inode->name, name, MAX_NAME - 1);
+    
     return 0;
 }
 
@@ -173,4 +190,45 @@ int vfs_chdir(const char* path) {
     
     cwd = inode;
     return 0;
+}
+
+int vfs_remove(const char* path) {
+    struct inode* inode = vfs_namei(path);
+    if (!inode || inode == root_inode) {
+        return -1;
+    }
+    
+    inode->type = FT_NONE;
+    inode->inum = 0;
+    inode->name[0] = 0;
+    if (inode->data) {
+        kfree(inode->data);
+        inode->data = NULL;
+    }
+    
+    return 0;
+}
+
+void vfs_ls() {
+    uart_puts("   INUM  TYPE  SIZE    NAME\n");
+    for (int i = 0; i < NINODES; i++) {
+        if (inodes[i].type != FT_NONE) {
+            uart_putnum(inodes[i].inum, 10);
+            uart_puts("     ");
+            if (inodes[i].type == FT_DIR) uart_puts("DIR   ");
+            else uart_puts("FILE  ");
+            uart_putnum(inodes[i].size, 10);
+            uart_puts("    ");
+            uart_puts(inodes[i].name);
+            uart_puts("\n");
+        }
+    }
+}
+
+void vfs_pwd(char* buf) {
+    if (cwd) {
+        strcpy(buf, cwd->name);
+    } else {
+        strcpy(buf, "/");
+    }
 }

@@ -46,12 +46,12 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c
 run: $(KERNEL)
 	qemu-system-riscv64 -machine virt -cpu rv64 -smp 1 \
 		-m 512M -nographic \
-		-bios none -kernel $(KERNEL)
+		-kernel $(KERNEL)
 
 debug: $(KERNEL)
 	qemu-system-riscv64 -machine virt -cpu rv64 -smp 1 \
 		-m 512M -nographic \
-		-bios none -kernel $(KERNEL) \
+		-kernel $(KERNEL) \
 		-s -S
 
 clean:

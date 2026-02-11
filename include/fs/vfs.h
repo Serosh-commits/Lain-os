@@ -18,12 +18,14 @@ struct inode {
     int nlink;
     uint64_t size;
     char* data;
+    char name[MAX_NAME];
 };
 
 struct file {
     struct inode* inode;
     uint64_t offset;
     int flags;
+    int refcount;
 };
 
 struct dirent {
@@ -33,11 +35,15 @@ struct dirent {
 
 void vfs_init();
 struct file* vfs_open(const char* path, int flags);
+struct file* vfs_file_dup(struct file* f);
 void vfs_close(struct file* f);
 int vfs_read(struct file* f, char* buf, size_t count);
 int vfs_write(struct file* f, const char* buf, size_t count);
 int vfs_mkdir(const char* path);
 int vfs_chdir(const char* path);
+int vfs_remove(const char* path);
+void vfs_ls();
 struct inode* vfs_namei(const char* path);
+void vfs_pwd(char* buf);
 
 #endif
