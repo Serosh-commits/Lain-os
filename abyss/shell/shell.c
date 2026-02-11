@@ -1,4 +1,4 @@
-)#include "kernel/shell.h"
+#include "kernel/shell.h"
 #include "kernel/process.h"
 #include "drivers/uart.h"
 #include "fs/vfs.h"

@@ -1,6 +1,7 @@
 #include "fs/vfs.h"
 #include "mm/kmalloc.h"
 #include "lib/string.h"
+#include "drivers/uart.h"
 
 #define NINODES 128
 

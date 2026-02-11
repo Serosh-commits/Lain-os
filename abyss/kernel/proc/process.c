@@ -3,6 +3,7 @@
 #include "mm/pmm.h"
 #include "mm/vmm.h"
 #include "lib/string.h"
+#include "fs/vfs.h"
 
 struct proc proc_table[NPROC];
 static struct proc* current_proc;
