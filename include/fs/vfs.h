@@ -19,6 +19,7 @@ struct inode {
     uint64_t size;
     char* data;
     char name[MAX_NAME];
+    struct inode* parent;
 };
 
 struct file {

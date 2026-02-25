@@ -5,9 +5,6 @@ _start:
     csrw sie, zero
     csrw sip, zero
     
-    # OpenSBI starts us in S-mode, and it already handles multi-hart parking.
-    # No need to check mhartid (would fault in S-mode).
-    
     la sp, __stack_top
     
     la t0, __bss_start
@@ -22,10 +19,9 @@ bss_done:
     la t0, trap_vector
     csrw stvec, t0
     
-    li t0, 0x22      # Enable SSIP and STIP, disable SEIP (External)
+    li t0, 0x22
     csrw sie, t0
     
-    # Do not enable sstatus here. kmain will do it.
     csrw sstatus, zero
     
     call kmain
@@ -45,7 +41,6 @@ trap_vector:
     beqz sp, trap_from_kernel
     
     csrw sscratch, sp
-    
     addi sp, sp, -256
     
     sd ra, 0(sp)
@@ -84,7 +79,9 @@ trap_vector:
     
     mv a0, sp
     call trap_handler
-    
+
+.global trapret
+trapret:
     ld ra, 0(sp)
     ld gp, 16(sp)
     ld tp, 24(sp)
@@ -117,14 +114,10 @@ trap_vector:
     ld t6, 240(sp)
     
     ld sp, 8(sp)
-    
     sret
 
 trap_from_kernel:
-    # sp was already swapped with sscratch.
-    # sscratch now contains the kernel sp, and sp is 0.
     csrr sp, sscratch
-    
     addi sp, sp, -256
     sd ra, 0(sp)
     sd gp, 16(sp)
@@ -157,11 +150,8 @@ trap_from_kernel:
     sd t5, 232(sp)
     sd t6, 240(sp)
     
-    # Store old sp (before addi)
     addi t0, sp, 256
     sd t0, 8(sp)
-    
-    # We are still in kernel, keep sscratch 0
     csrw sscratch, zero
     
     mv a0, sp

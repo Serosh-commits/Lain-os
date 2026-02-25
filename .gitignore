@@ -1,4 +1,6 @@
+build/
+files/
 *.o
-kernel.elf
-.vscode/
-.DS_Store
+*.d
+*.bin
+*.elf
