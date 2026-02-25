@@ -3,6 +3,7 @@
 #include "mm/pmm.h"
 #include "mm/vmm.h"
 #include "lib/string.h"
+#include "fs/vfs.h"
 
 struct proc proc_table[NPROC];
 static struct proc* current_proc;
@@ -17,6 +18,8 @@ void proc_init() {
     }
     current_proc = NULL;
 }
+
+void forkret();
 
 struct proc* proc_alloc() {
     for (int i = 0; i < NPROC; i++) {
@@ -53,7 +56,7 @@ struct proc* proc_alloc() {
             }
             
             memset(&p->context, 0, sizeof(p->context));
-            p->context.ra = (uint64_t)sched_ret;
+            p->context.ra = (uint64_t)forkret;
             p->context.sp = p->kstack + KSTACK_SIZE;
             
             for (int j = 0; j < NOFILE; j++) {
@@ -64,6 +67,12 @@ struct proc* proc_alloc() {
         }
     }
     return NULL;
+}
+
+void forkret() {
+    struct proc* p = proc_current();
+    asm volatile("mv sp, %0" : : "r"(p->trapframe));
+    asm volatile("j trapret");
 }
 
 void proc_free(struct proc* p) {
@@ -101,20 +110,22 @@ int proc_fork() {
     
     struct proc* p = proc_current();
     
-    for (uint64_t i = 0; i < p->sz; i += PGSIZE) {
-        uint64_t pa = vmm_translate(p->pagetable, i);
-        if (pa == 0) {
-            continue;
+    if (p->sz > 0) {
+        for (uint64_t i = 0; i < p->sz; i += PGSIZE) {
+            uint64_t pa = vmm_translate(p->pagetable, i);
+            if (pa == 0) {
+                continue;
+            }
+            
+            char* mem = pmm_alloc();
+            if (!mem) {
+                proc_free(np);
+                return -1;
+            }
+            
+            memmove(mem, (char*)pa, PGSIZE);
+            vmm_map(np->pagetable, i, (uint64_t)mem, PGSIZE, PTE_R | PTE_W | PTE_X | PTE_U);
         }
-        
-        char* mem = pmm_alloc();
-        if (!mem) {
-            proc_free(np);
-            return -1;
-        }
-        
-        memmove(mem, (char*)pa, PGSIZE);
-        vmm_map(np->pagetable, i, (uint64_t)mem, PGSIZE, PTE_R | PTE_W | PTE_X | PTE_U);
     }
     
     np->sz = p->sz;
@@ -144,6 +155,7 @@ void proc_exit(int status) {
     
     for (int fd = 0; fd < NOFILE; fd++) {
         if (p->ofile[fd]) {
+            vfs_close(p->ofile[fd]);
             p->ofile[fd] = NULL;
         }
     }

@@ -6,18 +6,13 @@
 pagetable_t kernel_pagetable;
 
 pte_t* vmm_walk(pagetable_t pagetable, uint64_t va, int alloc) {
-    if (va >= MAXVA) {
-        return NULL;
-    }
-    
+    if (va >= MAXVA) return NULL;
     for (int level = 2; level > 0; level--) {
         pte_t* pte = &pagetable[PX(level, va)];
         if (*pte & PTE_V) {
             pagetable = (pagetable_t)PTE2PA(*pte);
         } else {
-            if (!alloc || (pagetable = pmm_alloc()) == NULL) {
-                return NULL;
-            }
+            if (!alloc || (pagetable = pmm_alloc()) == NULL) return NULL;
             memset(pagetable, 0, PGSIZE);
             *pte = PA2PTE(pagetable) | PTE_V;
         }
@@ -28,19 +23,12 @@ pte_t* vmm_walk(pagetable_t pagetable, uint64_t va, int alloc) {
 int vmm_map(pagetable_t pagetable, uint64_t va, uint64_t pa, uint64_t size, int perm) {
     uint64_t a = va & ~(PGSIZE - 1);
     uint64_t last = (va + size - 1) & ~(PGSIZE - 1);
-    
     for (;;) {
         pte_t* pte = vmm_walk(pagetable, a, 1);
-        if (pte == NULL) {
-            return -1;
-        }
-        if (*pte & PTE_V) {
-            return -1;
-        }
+        if (pte == NULL) return -1;
+        if (*pte & PTE_V) return -1;
         *pte = PA2PTE(pa) | perm | PTE_V | PTE_A | PTE_D;
-        if (a == last) {
-            break;
-        }
+        if (a == last) break;
         a += PGSIZE;
         pa += PGSIZE;
     }
@@ -50,38 +38,27 @@ int vmm_map(pagetable_t pagetable, uint64_t va, uint64_t pa, uint64_t size, int 
 void vmm_unmap(pagetable_t pagetable, uint64_t va, uint64_t size) {
     uint64_t a = va & ~(PGSIZE - 1);
     uint64_t last = (va + size - 1) & ~(PGSIZE - 1);
-    
     for (;;) {
         pte_t* pte = vmm_walk(pagetable, a, 0);
-        if (pte == NULL || (*pte & PTE_V) == 0) {
-            return;
-        }
-        if (PTE_FLAGS(*pte) == PTE_V) {
-            return;
-        }
+        if (pte == NULL || (*pte & PTE_V) == 0) return;
+        if (PTE_FLAGS(*pte) == PTE_V) return;
         uint64_t pa = PTE2PA(*pte);
         pmm_free((void*)pa);
         *pte = 0;
-        if (a == last) {
-            break;
-        }
+        if (a == last) break;
         a += PGSIZE;
     }
 }
 
 uint64_t vmm_translate(pagetable_t pagetable, uint64_t va) {
     pte_t* pte = vmm_walk(pagetable, va, 0);
-    if (pte == NULL || (*pte & PTE_V) == 0) {
-        return 0;
-    }
+    if (pte == NULL || (*pte & PTE_V) == 0) return 0;
     return PTE2PA(*pte) | (va & (PGSIZE - 1));
 }
 
 pagetable_t vmm_create() {
     pagetable_t pagetable = pmm_alloc();
-    if (pagetable) {
-        memset(pagetable, 0, PGSIZE);
-    }
+    if (pagetable) memset(pagetable, 0, PGSIZE);
     return pagetable;
 }
 
@@ -108,25 +85,14 @@ static void kvmmap(uint64_t va, uint64_t pa, uint64_t sz, int perm) {
 #define PGROUNDDOWN(a) (((a)) & ~(PGSIZE-1))
 
 void vmm_init() {
-    uart_puts("[VMM] Creating kernel pagetable...\n");
     kernel_pagetable = vmm_create();
-    
-    uart_puts("[VMM] Mapping I/O devices...\n");
     kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
     kvmmap(CLINT, CLINT, 0x10000, PTE_R | PTE_W);
     kvmmap(PLIC, PLIC, 0x400000, PTE_R | PTE_W);
-    
     extern char etext[];
     uint64_t text_end = PGROUNDUP((uint64_t)etext);
-    
-    uart_puts("[VMM] Mapping kernel text...\n");
     kvmmap(0x80000000L, 0x80000000L, text_end - 0x80000000L, PTE_R | PTE_X);
-    
-    uart_puts("[VMM] Mapping kernel data/stack...\n");
     kvmmap(text_end, text_end, 0x88000000L - text_end, PTE_R | PTE_W);
-    
-    uart_puts("[VMM] Switching to virtual memory...\n");
     w_satp(MAKE_SATP(kernel_pagetable));
     sfence_vma();
-    uart_puts("[VMM] Virtual memory enabled.\n");
 }

@@ -17,10 +17,11 @@ void pmm_init(uint64_t start_addr, uint64_t end_addr) {
     
     uint64_t p = start_addr;
     p = (p + PGSIZE - 1) & ~(PGSIZE - 1);
+    uint64_t end_p = end_addr & ~(PGSIZE - 1);
     
-    while (p + PGSIZE <= end_addr) {
-        pmm_free((void*)p);
-        p += PGSIZE;
+    for (uint64_t i = end_p; i > p; ) {
+        i -= PGSIZE;
+        pmm_free((void*)i);
     }
 }
 

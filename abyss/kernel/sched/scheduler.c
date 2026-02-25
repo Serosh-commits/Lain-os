@@ -15,24 +15,19 @@ void sched_init() {
     timelines = NULL;
     current_timeline = NULL;
     global_ticks = 0;
-    
     struct timeline* default_tl = timeline_create(100);
     current_timeline = default_tl;
 }
 
 struct timeline* timeline_create(uint64_t priority) {
     struct timeline* tl = kmalloc(sizeof(struct timeline));
-    if (!tl) {
-        return NULL;
-    }
-    
+    if (!tl) return NULL;
     tl->id = next_timeline_id++;
     tl->priority = priority;
     tl->quantum = 100 * priority;
     tl->elapsed = 0;
     tl->next = timelines;
     timelines = tl;
-    
     return tl;
 }
 
@@ -40,7 +35,6 @@ void timeline_assign(int pid, uint64_t timeline_id) {
     for (int i = 0; i < NPROC; i++) {
         if (proc_table[i].pid == pid) {
             proc_table[i].timeline_id = timeline_id;
-            
             struct timeline* tl = timelines;
             while (tl) {
                 if (tl->id == timeline_id) {
@@ -57,7 +51,6 @@ void timeline_assign(int pid, uint64_t timeline_id) {
 static struct proc* pick_next() {
     struct proc* best = NULL;
     uint64_t best_priority = 0;
-    
     for (int i = 0; i < NPROC; i++) {
         struct proc* p = &proc_table[i];
         if (p->state == RUNNABLE) {
@@ -74,7 +67,6 @@ static struct proc* pick_next() {
             }
         }
     }
-    
     if (!best) {
         for (int i = 0; i < NPROC; i++) {
             struct proc* p = &proc_table[i];
@@ -86,43 +78,47 @@ static struct proc* pick_next() {
             }
         }
     }
-    
     return best;
+}
+
+void scheduler() {
+    struct proc* p;
+    for (;;) {
+        intr_on();
+        p = pick_next();
+        if (p) {
+            proc_set_current(p);
+            p->state = RUNNING;
+            static struct context kctx;
+            context_switch(&kctx, &p->context);
+            proc_set_current(NULL);
+        } else {
+            asm volatile("wfi");
+        }
+    }
 }
 
 void sched_yield() {
     struct proc* p = proc_current();
-    if (!p) {
-        return;
-    }
-    
+    if (!p) return;
     struct proc* next = pick_next();
-    if (!next || next == p) {
-        return;
-    }
-    
+    if (!next || next == p) return;
     struct proc* old = p;
     proc_set_current(next);
     next->state = RUNNING;
-    
     context_switch(&old->context, &next->context);
 }
 
 void sched_timer() {
     global_ticks++;
-    
     if (current_timeline) {
         current_timeline->elapsed++;
-        
         if (current_timeline->elapsed >= current_timeline->quantum) {
             current_timeline->elapsed = 0;
             current_timeline = current_timeline->next;
-            if (!current_timeline) {
-                current_timeline = timelines;
-            }
+            if (!current_timeline) current_timeline = timelines;
         }
     }
-    
     struct proc* p = proc_current();
     if (p && p->state == RUNNING) {
         p->state = RUNNABLE;
@@ -132,15 +128,12 @@ void sched_timer() {
 
 void sched_ret() {
     struct proc* p = proc_current();
-    if (p) {
-        p->state = RUNNABLE;
-    }
+    if (p) p->state = RUNNABLE;
 }
 
 void sched_branch() {
     struct proc* p = proc_current();
     if (!p) return;
-    
     struct timeline* tl = timeline_create(p->priority + 10);
     if (tl) {
         p->timeline_id = tl->id;
@@ -151,12 +144,10 @@ void sched_branch() {
 void sched_collapse(uint64_t id) {
     struct timeline* tl = timelines;
     struct timeline* prev = NULL;
-    
     while (tl) {
-        if (tl->id != id && tl->id != 1) { // Never collapse default timeline 1
+        if (tl->id != id && tl->id != 1) {
             if (prev) prev->next = tl->next;
             else timelines = tl->next;
-            
             struct timeline* tmp = tl;
             tl = tl->next;
             kfree(tmp);

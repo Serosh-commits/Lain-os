@@ -25,7 +25,7 @@ void* kmalloc(size_t size) {
     
     size_t total_size = size + sizeof(struct block_header);
     
-    if (total_size <= PGSIZE - sizeof(struct block_header)) {
+    if (total_size <= PGSIZE) {
         struct block_header* current = heap_start;
         struct block_header* prev = NULL;
         
@@ -60,9 +60,9 @@ void* kmalloc(size_t size) {
         
         return (void*)(block + 1);
     } else {
-        size_t pages = (total_size + PGSIZE - 1) / PGSIZE;
-        void* ptr = pmm_alloc();
-        if (!ptr) {
+        size_t pages = (size + PGSIZE - 1) / PGSIZE;
+        void* first_page = pmm_alloc();
+        if (!first_page) {
             return NULL;
         }
         
@@ -73,7 +73,7 @@ void* kmalloc(size_t size) {
             }
         }
         
-        return ptr;
+        return first_page;
     }
 }
 
@@ -82,8 +82,12 @@ void kfree(void* ptr) {
         return;
     }
     
+    if (((uint64_t)ptr % PGSIZE) == 0) {
+        pmm_free(ptr);
+        return;
+    }
+
     struct block_header* block = (struct block_header*)ptr - 1;
-    
     if (block->magic == BLOCK_MAGIC) {
         block->free = 1;
     }

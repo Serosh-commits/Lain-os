@@ -1,4 +1,4 @@
-)#include "kernel/shell.h"
+#include "kernel/shell.h"
 #include "kernel/process.h"
 #include "drivers/uart.h"
 #include "fs/vfs.h"
@@ -65,7 +65,7 @@ static void cmd_help() {
     uart_puts("  branch     - Create temporal fracture\n");
     uart_puts("  collapse   - Collapse probabilities\n");
     uart_puts("  echo       - Echo text\n");
-    uart_puts("  fork       - Fork process (dummy)\n");
+    uart_puts("  fork       - Fork process\n");
     uart_puts("  ascend     - Trigger ascension\n");
 }
 
@@ -107,7 +107,7 @@ static void cmd_cat(const char* name) {
 }
 
 static void cmd_write(const char* name, const char* data) {
-    struct file* f = vfs_open(name, 0x201); // O_CREAT | O_WRONLY
+    struct file* f = vfs_open(name, 0x201);
     if (!f) {
         uart_puts("Failed to open file\n");
         return;
@@ -143,20 +143,11 @@ static void cmd_ps() {
             uart_putnum(p->pid, 10);
             uart_puts("  ");
             switch (p->state) {
-                case SLEEPING:
-                    uart_puts("SLEEPING  ");
-                    break;
-                case RUNNABLE:
-                    uart_puts("RUNNABLE  ");
-                    break;
-                case RUNNING:
-                    uart_puts("RUNNING   ");
-                    break;
-                case ZOMBIE:
-                    uart_puts("ZOMBIE    ");
-                    break;
-                default:
-                    uart_puts("UNKNOWN   ");
+                case SLEEPING: uart_puts("SLEEPING  "); break;
+                case RUNNABLE: uart_puts("RUNNABLE  "); break;
+                case RUNNING: uart_puts("RUNNING   "); break;
+                case ZOMBIE: uart_puts("ZOMBIE    "); break;
+                default: uart_puts("UNKNOWN   "); break;
             }
             uart_puts(p->name);
             uart_puts("\n");
@@ -165,11 +156,8 @@ static void cmd_ps() {
 }
 
 static void cmd_kill(int pid) {
-    if (proc_kill(pid) == 0) {
-        uart_puts("Process killed\n");
-    } else {
-        uart_puts("Process not found\n");
-    }
+    if (proc_kill(pid) == 0) uart_puts("Process killed\n");
+    else uart_puts("Process not found\n");
 }
 
 static void cmd_mem() {
@@ -183,16 +171,11 @@ static void cmd_mem() {
 }
 
 static void cmd_ascend() {
-    uart_puts("\n");
-    uart_puts("Initiating ascension sequence...\n");
-    uart_puts("Dumping system state...\n");
-    uart_puts("\n");
+    uart_puts("\nInitiating ascension sequence...\nDumping system state...\n\n");
     cmd_ps();
     uart_puts("\n");
     cmd_mem();
-    uart_puts("\n");
-    uart_puts("Ascension complete. Returning to the Wired...\n");
-    uart_puts("\n");
+    uart_puts("\nAscension complete. Returning to the Wired...\n\n");
 }
 
 static void cmd_echo(char* args) {
@@ -205,16 +188,10 @@ static void cmd_timeline(int argc, char** argv) {
         uart_puts("Usage: timeline <list|create|assign>\n");
         return;
     }
-    
-    if (strcmp(argv[1], "list") == 0) {
-        uart_puts("ID  PRIORITY  QUANTUM  ELAPSED\n");
-        // We need an extern to timelines or a getter
-        // But for now let's just use what's available
-        uart_puts("Feature partially implemented - see logs\n");
-    } else if (strcmp(argv[1], "create") == 0) {
-        if (argc < 3) {
-            uart_puts("Usage: timeline create <priority>\n");
-        } else {
+    if (strcmp(argv[1], "list") == 0) uart_puts("Feature partially implemented - see logs\n");
+    else if (strcmp(argv[1], "create") == 0) {
+        if (argc < 3) uart_puts("Usage: timeline create <priority>\n");
+        else {
             uint64_t prio = atoi(argv[2]);
             struct timeline* tl = timeline_create(prio);
             if (tl) {
@@ -224,9 +201,8 @@ static void cmd_timeline(int argc, char** argv) {
             }
         }
     } else if (strcmp(argv[1], "assign") == 0) {
-        if (argc < 4) {
-            uart_puts("Usage: timeline assign <pid> <timeline_id>\n");
-        } else {
+        if (argc < 4) uart_puts("Usage: timeline assign <pid> <timeline_id>\n");
+        else {
             int pid = atoi(argv[2]);
             uint64_t tl_id = atoi(argv[3]);
             timeline_assign(pid, tl_id);
@@ -237,16 +213,9 @@ static void cmd_timeline(int argc, char** argv) {
 
 static void cmd_fork() {
     int pid = proc_fork();
-    if (pid < 0) {
-        uart_puts("Fork failed\n");
-    } else if (pid == 0) {
-        // Child process
-        // Since we are in kernel threads, we should really go somewhere else
-        // But for a simple test we can just loop
-        while(1) {
-            asm volatile("wfi");
-        }
-    } else {
+    if (pid < 0) uart_puts("Fork failed\n");
+    else if (pid == 0) while(1) asm volatile("wfi");
+    else {
         uart_puts("Forked process with PID ");
         uart_putnum(pid, 10);
         uart_puts("\n");
@@ -256,111 +225,77 @@ static void cmd_fork() {
 void shell_execute(char* cmd) {
     char* argv[16];
     int argc = 0;
-    
     char* p = cmd;
     while (*p && argc < 16) {
-        while (*p == ' ' || *p == '\t') {
-            p++;
-        }
-        if (!*p) {
-            break;
-        }
-        
+        while (*p == ' ' || *p == '\t') p++;
+        if (!*p) break;
         argv[argc++] = p;
-        
-        while (*p && *p != ' ' && *p != '\t') {
-            p++;
-        }
-        if (*p) {
-            *p++ = 0;
-        }
+        while (*p && *p != ' ' && *p != '\t') p++;
+        if (*p) *p++ = 0;
     }
-    
-    if (argc == 0) {
-        return;
+    if (argc == 0) return;
+    if (strcmp(argv[0], "help") == 0) cmd_help();
+    else if (strcmp(argv[0], "clear") == 0) cmd_clear();
+    else if (strcmp(argv[0], "neofetch") == 0) cmd_neofetch();
+    else if (strcmp(argv[0], "ps") == 0) cmd_ps();
+    else if (strcmp(argv[0], "kill") == 0) {
+        if (argc > 1) cmd_kill(atoi(argv[1]));
+        else uart_puts("Usage: kill <pid>\n");
     }
-    
-    if (strcmp(argv[0], "help") == 0) {
-        cmd_help();
-    } else if (strcmp(argv[0], "clear") == 0) {
-        cmd_clear();
-    } else if (strcmp(argv[0], "neofetch") == 0) {
-        cmd_neofetch();
-    } else if (strcmp(argv[0], "ps") == 0) {
-        cmd_ps();
-    } else if (strcmp(argv[0], "kill") == 0) {
-        if (argc > 1) {
-            cmd_kill(atoi(argv[1]));
-        } else {
-            uart_puts("Usage: kill <pid>\n");
-        }
-    } else if (strcmp(argv[0], "mem") == 0) {
-        cmd_mem();
-    } else if (strcmp(argv[0], "ascend") == 0) {
-        cmd_ascend();
-    } else if (strcmp(argv[0], "echo") == 0) {
-        if (argc > 1) {
-            cmd_echo(argv[1]);
-        }
-    } else if (strcmp(argv[0], "ls") == 0) {
-        vfs_ls();
-    } else if (strcmp(argv[0], "cd") == 0) {
-        if (argc > 1) {
-            vfs_chdir(argv[1]);
-        } else {
-            vfs_chdir("/");
-        }
-    } else if (strcmp(argv[0], "pwd") == 0) {
+    else if (strcmp(argv[0], "mem") == 0) cmd_mem();
+    else if (strcmp(argv[0], "ascend") == 0) cmd_ascend();
+    else if (strcmp(argv[0], "echo") == 0) {
+        if (argc > 1) cmd_echo(argv[1]);
+    }
+    else if (strcmp(argv[0], "ls") == 0) vfs_ls();
+    else if (strcmp(argv[0], "cd") == 0) {
+        if (argc > 1) vfs_chdir(argv[1]);
+        else vfs_chdir("/");
+    }
+    else if (strcmp(argv[0], "pwd") == 0) {
         char buf[MAX_PATH];
         vfs_pwd(buf);
         uart_puts(buf);
         uart_puts("\n");
-    } else if (strcmp(argv[0], "mkdir") == 0) {
+    }
+    else if (strcmp(argv[0], "mkdir") == 0) {
+        if (argc > 1) vfs_mkdir(argv[1]);
+    }
+    else if (strcmp(argv[0], "touch") == 0) {
         if (argc > 1) {
-            vfs_mkdir(argv[1]);
-        }
-    } else if (strcmp(argv[0], "touch") == 0) {
-        if (argc > 1) {
-            struct file* f = vfs_open(argv[1], 0x200); // O_CREAT
+            struct file* f = vfs_open(argv[1], 0x200);
             if (f) vfs_close(f);
         }
-    } else if (strcmp(argv[0], "rm") == 0) {
-        if (argc > 1) {
-            vfs_remove(argv[1]);
-        }
-    } else if (strcmp(argv[0], "cat") == 0) {
-        if (argc > 1) {
-            cmd_cat(argv[1]);
-        }
-    } else if (strcmp(argv[0], "write") == 0) {
-        if (argc > 2) {
-            cmd_write(argv[1], argv[2]);
-        }
-    } else if (strcmp(argv[0], "whoami") == 0) {
-        cmd_whoami();
-    } else if (strcmp(argv[0], "hostname") == 0) {
-        cmd_hostname();
-    } else if (strcmp(argv[0], "sudo") == 0) {
-        cmd_sudo();
-    } else if (strcmp(argv[0], "uptime") == 0) {
-        cmd_uptime();
-    } else if (strcmp(argv[0], "timeline") == 0) {
-        cmd_timeline(argc, argv);
-    } else if (strcmp(argv[0], "branch") == 0) {
+    }
+    else if (strcmp(argv[0], "rm") == 0) {
+        if (argc > 1) vfs_remove(argv[1]);
+    }
+    else if (strcmp(argv[0], "cat") == 0) {
+        if (argc > 1) cmd_cat(argv[1]);
+    }
+    else if (strcmp(argv[0], "write") == 0) {
+        if (argc > 2) cmd_write(argv[1], argv[2]);
+    }
+    else if (strcmp(argv[0], "whoami") == 0) cmd_whoami();
+    else if (strcmp(argv[0], "hostname") == 0) cmd_hostname();
+    else if (strcmp(argv[0], "sudo") == 0) cmd_sudo();
+    else if (strcmp(argv[0], "uptime") == 0) cmd_uptime();
+    else if (strcmp(argv[0], "timeline") == 0) cmd_timeline(argc, argv);
+    else if (strcmp(argv[0], "branch") == 0) {
         sched_branch();
         uart_puts("Fracture created.\n");
-    } else if (strcmp(argv[0], "collapse") == 0) {
+    }
+    else if (strcmp(argv[0], "collapse") == 0) {
         if (argc > 1) {
             sched_collapse(atoi(argv[1]));
             uart_puts("Probabilities collapsed.\n");
         }
-    } else if (strcmp(argv[0], "fork") == 0) {
-        cmd_fork();
-    } else {
+    }
+    else if (strcmp(argv[0], "fork") == 0) cmd_fork();
+    else {
         uart_puts("Unknown command: ");
         uart_puts(argv[0]);
-        uart_puts("\n");
-        uart_puts("Type 'help' for available commands\n");
+        uart_puts("\nType 'help' for available commands\n");
     }
 }
 
@@ -371,20 +306,16 @@ void shell_init() {
 
 void shell_run() {
     print_banner();
-    
     while (1) {
         uart_puts("root@abyss# ");
-        
         int pos = 0;
         memset(cmdline, 0, sizeof(cmdline));
-        
         while (1) {
             int c = uart_getc();
             if (c == -1) {
                 sched_yield();
                 continue;
             }
-            
             if (c == '\n' || c == '\r') {
                 uart_puts("\n");
                 break;
@@ -407,15 +338,11 @@ void shell_run() {
                 uart_putc(c);
             }
         }
-        
         cmdline[pos] = 0;
-        
         if (pos > 0) {
             strcpy(history[history_idx % 16], cmdline);
             history_idx++;
-            
             markov_learn(cmdline);
-            
             shell_execute(cmdline);
         }
     }
