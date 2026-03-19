@@ -81,6 +81,8 @@ static struct proc* pick_next() {
     return best;
 }
 
+struct context scheduler_context;
+
 void scheduler() {
     struct proc* p;
     for (;;) {
@@ -89,8 +91,9 @@ void scheduler() {
         if (p) {
             proc_set_current(p);
             p->state = RUNNING;
-            static struct context kctx;
-            context_switch(&kctx, &p->context);
+            
+            context_switch(&scheduler_context, &p->context);
+            
             proc_set_current(NULL);
         } else {
             asm volatile("wfi");
@@ -98,15 +101,14 @@ void scheduler() {
     }
 }
 
+extern struct context scheduler_context;
+
 void sched_yield() {
     struct proc* p = proc_current();
     if (!p) return;
-    struct proc* next = pick_next();
-    if (!next || next == p) return;
-    struct proc* old = p;
-    proc_set_current(next);
-    next->state = RUNNING;
-    context_switch(&old->context, &next->context);
+    
+    // We don't pick_next here. We switch back to the global scheduler context.
+    context_switch(&p->context, &scheduler_context);
 }
 
 void sched_timer() {
