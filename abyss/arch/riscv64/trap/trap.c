@@ -10,6 +10,11 @@ void trap_handler(struct trapframe* tf) {
     uint64_t scause = r_scause();
     uint64_t sepc = r_sepc();
     
+    struct proc* p = proc_current();
+    if (p && p->killed) {
+        proc_exit(-1);
+    }
+    
     if (scause & (1ULL << 63)) {
         uint64_t interrupt = scause & 0xFF;
         

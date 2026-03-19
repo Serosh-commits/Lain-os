@@ -66,6 +66,7 @@ static void cmd_help() {
     uart_puts("  collapse   - Collapse probabilities\n");
     uart_puts("  echo       - Echo text\n");
     uart_puts("  fork       - Fork process\n");
+    uart_puts("  wait       - Wait for reaped processes\n");
     uart_puts("  ascend     - Trigger ascension\n");
 }
 
@@ -211,14 +212,39 @@ static void cmd_timeline(int argc, char** argv) {
     }
 }
 
+static void dummy_child() {
+    while (1) {
+        asm volatile("wfi");
+    }
+}
+
 static void cmd_fork() {
-    int pid = proc_fork();
-    if (pid < 0) uart_puts("Fork failed\n");
-    else if (pid == 0) while(1) asm volatile("wfi");
-    else {
-        uart_puts("Forked process with PID ");
+    struct proc* p = proc_current();
+    struct proc* np = proc_alloc();
+    if (!np) {
+        uart_puts("Fork failed\n");
+        return;
+    }
+    np->parent = p;
+    strcpy(np->name, "forked-child");
+    np->context.ra = (uint64_t)dummy_child;
+    
+    uart_puts("Forked process with PID ");
+    uart_putnum(np->pid, 10);
+    uart_puts("\n");
+}
+
+static void cmd_wait() {
+    int status;
+    int pid = proc_wait(&status);
+    if (pid >= 0) {
+        uart_puts("Reaped PID ");
         uart_putnum(pid, 10);
+        uart_puts(" with status ");
+        uart_putnum(status, 10);
         uart_puts("\n");
+    } else {
+        uart_puts("No children to wait for\n");
     }
 }
 
@@ -292,6 +318,7 @@ void shell_execute(char* cmd) {
         }
     }
     else if (strcmp(argv[0], "fork") == 0) cmd_fork();
+    else if (strcmp(argv[0], "wait") == 0) cmd_wait();
     else {
         uart_puts("Unknown command: ");
         uart_puts(argv[0]);
