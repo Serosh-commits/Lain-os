@@ -58,13 +58,25 @@ uint64_t vmm_translate(pagetable_t pagetable, uint64_t va) {
 
 pagetable_t vmm_create() {
     pagetable_t pagetable = pmm_alloc();
-    if (pagetable) memset(pagetable, 0, PGSIZE);
+    if (pagetable) {
+        memset(pagetable, 0, PGSIZE);
+        if (kernel_pagetable) {
+            for (int i = 0; i < 512; i++) {
+                if (kernel_pagetable[i] & PTE_V) {
+                    pagetable[i] = kernel_pagetable[i];
+                }
+            }
+        }
+    }
     return pagetable;
 }
 
 void vmm_free(pagetable_t pagetable, int level) {
     for (int i = 0; i < 512; i++) {
         pte_t pte = pagetable[i];
+        if (level == 2 && kernel_pagetable && pagetable[i] == kernel_pagetable[i]) {
+            continue;
+        }
         if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
             uint64_t child = PTE2PA(pte);
             vmm_free((pagetable_t)child, level - 1);
@@ -72,6 +84,7 @@ void vmm_free(pagetable_t pagetable, int level) {
         } else if (pte & PTE_V) {
             uint64_t pa = PTE2PA(pte);
             pmm_free((void*)pa);
+            pagetable[i] = 0;
         }
     }
     pmm_free((void*)pagetable);

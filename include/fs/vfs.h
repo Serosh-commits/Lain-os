@@ -43,7 +43,7 @@ int vfs_write(struct file* f, const char* buf, size_t count);
 int vfs_mkdir(const char* path);
 int vfs_chdir(const char* path);
 int vfs_remove(const char* path);
-void vfs_ls();
+void vfs_ls(const char* path);
 struct inode* vfs_namei(const char* path);
 void vfs_pwd(char* buf);
 

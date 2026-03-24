@@ -128,7 +128,9 @@ static void cmd_neofetch() {
     uart_puts("   |o_o |     -------------\n");
     uart_puts("   |:_/ |     OS: Lain-OS (Abyss)\n");
     uart_puts("  //   \\ \\    Kernel: RISC-V 64\n");
-    uart_puts(" (|     | )   Uptime: Unknown\n");
+    uart_puts(" (|     | )   Uptime: ");
+    uart_putnum(get_uptime() / 1000000, 10);
+    uart_puts("s\n");
     uart_puts("/'\\_ _/`\\    Memory: ");
     uart_putnum(pmm_free_count() * 4, 10);
     uart_puts(" KB free\n");
@@ -189,7 +191,7 @@ static void cmd_timeline(int argc, char** argv) {
         uart_puts("Usage: timeline <list|create|assign>\n");
         return;
     }
-    if (strcmp(argv[1], "list") == 0) uart_puts("Feature partially implemented - see logs\n");
+    if (strcmp(argv[1], "list") == 0) timeline_list_all();
     else if (strcmp(argv[1], "create") == 0) {
         if (argc < 3) uart_puts("Usage: timeline create <priority>\n");
         else {
@@ -273,7 +275,10 @@ void shell_execute(char* cmd) {
     else if (strcmp(argv[0], "echo") == 0) {
         if (argc > 1) cmd_echo(argv[1]);
     }
-    else if (strcmp(argv[0], "ls") == 0) vfs_ls();
+    else if (strcmp(argv[0], "ls") == 0) {
+        if (argc > 1) vfs_ls(argv[1]);
+        else vfs_ls(NULL);
+    }
     else if (strcmp(argv[0], "cd") == 0) {
         if (argc > 1) vfs_chdir(argv[1]);
         else vfs_chdir("/");

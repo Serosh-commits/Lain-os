@@ -19,5 +19,6 @@ struct timeline* timeline_create(uint64_t priority);
 void timeline_assign(int pid, uint64_t timeline_id);
 void sched_branch();
 void sched_collapse(uint64_t id);
+void timeline_list_all();
 
 #endif
