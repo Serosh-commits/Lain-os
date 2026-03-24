@@ -3,6 +3,7 @@
 #include "kernel/riscv.h"
 #include "mm/kmalloc.h"
 #include "lib/string.h"
+#include "drivers/uart.h"
 
 static struct timeline* timelines;
 static struct timeline* current_timeline;
@@ -158,5 +159,22 @@ void sched_collapse(uint64_t id) {
             prev = tl;
             tl = tl->next;
         }
+    }
+}
+
+void timeline_list_all() {
+    struct timeline* tl = timelines;
+    uart_puts("ID  PRIO  QUANTUM  ELAPSED\n");
+    while (tl) {
+        uart_putnum(tl->id, 10);
+        uart_puts("  ");
+        uart_putnum(tl->priority, 10);
+        uart_puts("   ");
+        uart_putnum(tl->quantum, 10);
+        uart_puts("     ");
+        uart_putnum(tl->elapsed, 10);
+        if (tl == current_timeline) uart_puts(" *");
+        uart_puts("\n");
+        tl = tl->next;
     }
 }

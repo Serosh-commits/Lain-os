@@ -24,7 +24,7 @@ void vfs_init() {
     root_inode->nlink = 1;
     root_inode->size = 0;
     root_inode->data = NULL;
-    root_inode->parent = root_inode;
+    root_inode->parent = NULL;
     strcpy(root_inode->name, "/");
     
     cwd = root_inode;
@@ -239,10 +239,19 @@ int vfs_remove(const char* path) {
     return 0;
 }
 
-void vfs_ls() {
+void vfs_ls(const char* path) {
+    struct inode* dir = cwd;
+    if (path) {
+        dir = vfs_namei(path);
+        if (!dir || dir->type != FT_DIR) {
+            uart_puts("Directory not found\n");
+            return;
+        }
+    }
+    
     uart_puts("   INUM  TYPE  SIZE    NAME\n");
     for (int i = 0; i < NINODES; i++) {
-        if (inodes[i].type != FT_NONE && inodes[i].parent == cwd) {
+        if (inodes[i].type != FT_NONE && inodes[i].parent == dir) {
             uart_putnum(inodes[i].inum, 10);
             uart_puts("     ");
             if (inodes[i].type == FT_DIR) uart_puts("DIR   ");
